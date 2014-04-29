@@ -7,17 +7,16 @@
 //
 
 #import <UIKit/UIKit.h>
-
 @class KLNoteViewController;
 @class KLControllerCard;
 @protocol KLNoteViewControllerDataSource;
 @protocol KLNoteViewControllerDelegate;
 
 enum {
-  KLControllerCardStateHiddenBottom,    //Card is hidden off screen (Below bottom of visible area)
-  KLControllerCardStateHiddenTop,       //Card is hidden off screen (At top of visible area)
-  KLControllerCardStateDefault,         //Default location for the card
-  KLControllerCardStateFullScreen       //Highlighted location for the card 
+    KLControllerCardStateHiddenBottom,    //Card is hidden off screen (Below bottom of visible area)
+    KLControllerCardStateHiddenTop,       //Card is hidden off screen (At top of visible area)
+    KLControllerCardStateDefault,         //Default location for the card
+    KLControllerCardStateFullScreen       //Highlighted location for the card
 };
 typedef UInt32 KLControllerCardState;
 
@@ -26,8 +25,6 @@ enum {
     KLControllerCardPanGestureScopeNavigationControllerView     // the pan gesture works on the whole card view
 };
 typedef UInt32 KLControllerCardPanGestureScope;
-
-typedef void (^transitionStateBlock)(UIViewController* viewController, KLControllerCardState fromState, KLControllerCardState);
 
 @protocol KLControllerCardDelegate <NSObject>
 @optional
@@ -43,7 +40,7 @@ typedef void (^transitionStateBlock)(UIViewController* viewController, KLControl
 //KLController card encapsulates the UINavigationController handling all the resizing and state management for the view. It has no concept of the other cards or world outside of itself.
 @interface KLControllerCard : UIView<UIGestureRecognizerDelegate>
 {
-    @private
+@private
     CGFloat originY;
     CGFloat scalingFactor;
 }
@@ -60,16 +57,17 @@ typedef void (^transitionStateBlock)(UIViewController* viewController, KLControl
 @property (nonatomic, strong) UITapGestureRecognizer* tapGesture;
 -(id) initWithNoteViewController: (KLNoteViewController*) noteViewController
                andViewController:(UIViewController*) viewController;
-
 -(void) toggleStateAnimated:(BOOL) animated;
 -(void) setState:(KLControllerCardState) state animated:(BOOL) animated;
 -(void) setYCoordinate:(CGFloat)yValue;
 -(CGFloat) percentageDistanceTravelled;
+-(void)adjustOriginY:(CGFloat)originY;
+
 @end
 
 //KLNoteViewController manages the cards interfacing between the various cards
 @interface KLNoteViewController : UIViewController  <KLControllerCardDelegate>
-@property (nonatomic, copy) transitionStateBlock stateTransitionBlock;
+
 @property (nonatomic, weak) id<KLNoteViewControllerDataSource> dataSource;
 @property (nonatomic, weak) id<KLNoteViewControllerDelegate> delegate;
 
@@ -87,7 +85,7 @@ typedef void (^transitionStateBlock)(UIViewController* viewController, KLControl
 //Animation properties
 @property (nonatomic) NSTimeInterval cardAnimationDuration;             //Amount of time for the animations to occur
 @property (nonatomic) NSTimeInterval cardReloadHideAnimationDuration;
-@property (nonatomic) NSTimeInterval cardReloadShowAnimationDuration;   
+@property (nonatomic) NSTimeInterval cardReloadShowAnimationDuration;
 
 //Position for the stack of navigation controllers to originate at
 @property (nonatomic) CGFloat cardVerticalOrigin;           //Vertical origin of the controller card stack. Making this value larger/smaller will make the card shift down/up.
@@ -111,14 +109,12 @@ typedef void (^transitionStateBlock)(UIViewController* viewController, KLControl
 @property (nonatomic) UIViewAutoresizing cardAutoresizingMask;
 
 //KLControllerCards in an array. Object at index 0 will appear at bottom of the stack, and object at position (size-1) will appear at the top
-@property (nonatomic, strong) NSArray* controllerCards;
+@property (nonatomic, strong) NSMutableArray* controllerCards;
 
 //Repopulates all data for the controllerCards array
 -(void) reloadData;
 -(void) reloadDataAnimated:(BOOL) animated;
-
-//Whether or not to support behavior to stop card below a threshold
-@property (nonatomic) BOOL stickyNotes;
+-(void) adjustVerticalOriginForControllerCards;
 
 //Helpers for getting information about the controller cards
 -(NSInteger)numberOfControllerCardsInNoteView:(KLNoteViewController*) noteView;

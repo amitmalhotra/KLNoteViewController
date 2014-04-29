@@ -127,6 +127,18 @@
     [self reloadData];
 }
 
+#pragma mark - adjust originY
+-(void) adjustVerticalOriginForControllerCards {
+    
+    [self.controllerCards enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        KLControllerCard* controllerCard = (KLControllerCard*)obj;
+        CGFloat newOriginY = [self defaultVerticalOriginForControllerCard:controllerCard];
+        [controllerCard adjustOriginY:newOriginY];
+        [controllerCard setState:controllerCard.state animated:YES];
+    }];
+    
+}
+
 #pragma Drawing Methods - Used to position and present the navigation controllers on screen
 - (NSInteger) indexForControllerCard: (KLControllerCard*) controllerCard {
     return  [self.viewControllers indexOfObject: controllerCard.viewController];
@@ -154,6 +166,8 @@
 
 - (void) reloadData {
     
+    [self removeControllerCardFromSuperView];
+    [self.controllerCards removeAllObjects];
     self.controllerCards = nil;
     [self.viewControllers removeAllObjects];
     //Get the number of navigation  controllers to expect
@@ -174,7 +188,7 @@
     for (UIViewController* currentViewController in self.viewControllers) {
         KLControllerCard* controllerCard = [[KLControllerCard alloc] initWithNoteViewController: self
                                                                               andViewController: currentViewController];
-
+        
         [controllerCard setDelegate: self];
         [cardControllers addObject: controllerCard];
         [currentViewController willMoveToParentViewController: self];
@@ -185,28 +199,28 @@
                         animated:NO];
     }
     
-    self.controllerCards = [NSArray arrayWithArray:cardControllers];
+    self.controllerCards = [NSMutableArray arrayWithArray:cardControllers];
 }
 - (void) reloadDataAnimated:(BOOL) animated {
     if (animated) {
         [UIView animateWithDuration:self.cardReloadHideAnimationDuration
                          animations:^{
-            for (KLControllerCard* card in self.controllerCards) {
-                [card setState:KLControllerCardStateHiddenBottom animated:NO];
-            }
-        } completion:^(BOOL finished) {
-            [self reloadData];
-            [self reloadInputViews];
-            for (KLControllerCard* card in self.controllerCards) {
-                [card setState:KLControllerCardStateHiddenBottom animated:NO];
-            }
-            [UIView animateWithDuration:self.cardReloadShowAnimationDuration
-                             animations:^{
-                for (KLControllerCard* card in self.controllerCards) {
-                    [card setState:KLControllerCardStateDefault animated:NO];
-                }
-            }];
-        }];
+                             for (KLControllerCard* card in self.controllerCards) {
+                                 [card setState:KLControllerCardStateHiddenBottom animated:NO];
+                             }
+                         } completion:^(BOOL finished) {
+                             [self reloadData];
+                             [self reloadInputViews];
+                             for (KLControllerCard* card in self.controllerCards) {
+                                 [card setState:KLControllerCardStateHiddenBottom animated:NO];
+                             }
+                             [UIView animateWithDuration:self.cardReloadShowAnimationDuration
+                                              animations:^{
+                                                  for (KLControllerCard* card in self.controllerCards) {
+                                                      [card setState:KLControllerCardStateDefault animated:NO];
+                                                  }
+                                              }];
+                         }];
     }
     else   {
         [self reloadData];
@@ -229,9 +243,12 @@
 -(void) removeControllerCardFromSuperView {
     for (KLControllerCard* controllerCard in self.controllerCards) {
         [controllerCard.viewController willMoveToParentViewController:nil];  // 1
-        [controllerCard removeFromSuperview];            // 2
+        [controllerCard.viewController removeFromParentViewController];
+        [controllerCard removeFromSuperview];// 2
     }
+    
 }
+
 
 - (NSArray*) controllerCardsAboveCard:(KLControllerCard*) card {
     NSInteger index = [self indexForControllerCard:card];
@@ -255,7 +272,7 @@
     }]];
 }
 - (NSArray*) controllerCardsWithoutCard:(KLControllerCard*) card {
-    return [self.controllerCards filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(KLControllerCard* controllerCard, NSDictionary *bindings) {        
+    return [self.controllerCards filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(KLControllerCard* controllerCard, NSDictionary *bindings) {
         //Only return cards that are not equal to the parameter card
         return controllerCard != card;
     }]];
@@ -274,7 +291,7 @@
 #pragma mark - Delegate implementation for KLControllerCard
 
 -(void) controllerCard:(KLControllerCard*)controllerCard didChangeToDisplayState:(KLControllerCardState) toState fromDisplayState:(KLControllerCardState) fromState {
-
+    
     if (fromState == KLControllerCardStateDefault && toState == KLControllerCardStateFullScreen) {
         //For all cards above the current card move them
         for (KLControllerCard* currentCard  in [self controllerCardsAboveCard:controllerCard]) {
@@ -315,9 +332,6 @@
     
 }
 -(void) noteViewController: (KLNoteViewController*) noteViewController didUpdateControllerCard:(KLControllerCard*)controllerCard toDisplayState:(KLControllerCardState) toState fromDisplayState:(KLControllerCardState) fromState {
-    if (self.stateTransitionBlock) {
-        self.stateTransitionBlock(controllerCard.viewController, fromState, toState);
-    }
     if ([self.delegate respondsToSelector:@selector(noteViewController:didUpdateControllerCard:toDisplayState:fromDisplayState:)])
     {
         [self.delegate noteViewController:self
@@ -353,7 +367,7 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
 -(void) controllerCard:(KLControllerCard *)controllerCard
   didEndPanningGesture:(UIPanGestureRecognizer*) gesture {
     BOOL gesturesEnabled = YES;
-
+    
     //Enable touches in other cards
     for (KLControllerCard* currentCard in [self controllerCardsWithoutCard: controllerCard]) {
         [currentCard.panGesture setEnabled: gesturesEnabled];
@@ -371,9 +385,18 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
 @implementation KLControllerCard
 -(id) initWithNoteViewController: (KLNoteViewController*) noteViewController
                andViewController: (UIViewController*) viewController {
-    if (self = [super initWithFrame: viewController.view.frame]) {
+    
+    BOOL isPortrait = UIDeviceOrientationIsPortrait([[UIApplication sharedApplication] statusBarOrientation]);
+    CGRect rect = CGRectMake(viewController.view.frame.origin.x, viewController.view.frame.origin.y, viewController.view.frame.size.width, viewController.view.frame.size.height);
+    
+    if (!isPortrait) {
+        rect = CGRectMake(viewController.view.frame.origin.x, viewController.view.frame.origin.y, viewController.view.frame.size.height, viewController.view.frame.size.width);
+    }
+    
+    if (self = [super initWithFrame:rect]) {
         _noteViewController = noteViewController;
         _viewController = viewController;
+        [_viewController.view setFrame:rect];
         
         originY = [noteViewController defaultVerticalOriginForControllerCard: self];
         
@@ -394,9 +417,9 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
                                                               action:@selector(didPerformTapGesture:)];
         [_tapGesture setNumberOfTapsRequired:  _noteViewController.cardMinimumTapsRequired];
         _tapGesture.delegate = self;
-
+        
         if ([_viewController isKindOfClass:[UINavigationController class]]
-                && self.noteViewController.cardPanGestureScope == KLControllerCardPanGestureScopeNavigationBar) {
+            && self.noteViewController.cardPanGestureScope == KLControllerCardPanGestureScopeNavigationBar) {
             [[(UINavigationController*)_viewController navigationBar] addGestureRecognizer: _panGesture];
             
             //Add Tap gesture
@@ -414,7 +437,7 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
                 [_viewController.view addGestureRecognizer: _tapGesture];
             }
         }
-
+        
     }
     return self;
 }
@@ -491,30 +514,14 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
                      didEndPanningGesture:recognizer];
         }
         
-        
-        if(self.noteViewController.stickyNotes){
-            CGPoint point = [recognizer translationInView:self];
-            if (self.state == KLControllerCardStateFullScreen) {
-                if( ABS(point.y) <= 200){
-                    [self toggleStateAnimated:YES];
-                }
-            }
-            else if (self.state == KLControllerCardStateDefault){
-                if( ABS(point.y) <= 200){
-                    [self toggleStateAnimated:YES];
-                }
-            }
-        }else{
-            //Check if it should return to the origin location
-            if ([self shouldReturnToState: self.state fromPoint: [recognizer translationInView:self]]) {
-                [self setState: self.state animated:YES];
-            }
-            else {
-                //Toggle state between full screen and default if it doesnt return to the current state
-                [self toggleStateAnimated: YES];
-            }
+        //Check if it should return to the origin location
+        if ([self shouldReturnToState: self.state fromPoint: [recognizer translationInView:self]]) {
+            [self setState: self.state animated:YES];
         }
-        
+        else {
+            //Toggle state between full screen and default if it doesnt return to the current state
+            [self toggleStateAnimated: YES];
+        }
     }
 }
 
@@ -565,15 +572,15 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
     if (animated) {
         [UIView animateWithDuration: self.noteViewController.cardAnimationDuration
                          animations:^{
-            [self setState:state animated:NO];
-        } completion:^(BOOL finished) {
-            if (state == KLControllerCardStateFullScreen) {
-                // Fix scaling bug when expand to full size
-                self.frame = self.noteViewController.view.bounds;
-                self.viewController.view.frame = self.frame;
-                self.viewController.view.layer.cornerRadius = 3.0;
-            }
-        }];
+                             [self setState:state animated:NO];
+                         } completion:^(BOOL finished) {
+                             if (state == KLControllerCardStateFullScreen) {
+                                 // Fix scaling bug when expand to full size
+                                 self.frame = self.noteViewController.view.bounds;
+                                 self.viewController.view.frame = self.frame;
+                                 self.viewController.view.layer.cornerRadius = 3.0;
+                             }
+                         }];
         return;
     }
     
@@ -619,7 +626,7 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
     [self setState: nextState
           animated: animated];
 }
-#pragma mark - Various data helpers 
+#pragma mark - Various data helpers
 
 -(CGPoint) origin {
     return CGPointMake(0, originY);
@@ -627,6 +634,10 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
 
 -(CGFloat) percentageDistanceTravelled {
     return self.frame.origin.y/originY;
+}
+
+-(void)adjustOriginY:(CGFloat)newOriginY{
+    originY=newOriginY;
 }
 
 //Boolean for determining if the movement was sufficient to warrent changing states
