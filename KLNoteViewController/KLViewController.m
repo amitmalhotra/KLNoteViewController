@@ -62,4 +62,17 @@
     [self reloadDataAnimated:YES];
     
 }
+
+-(void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation{
+    
+    [self.stackedControllers enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        UIViewController* viewController = (UIViewController*)obj;
+        if (viewController) {
+           self.frame = self.noteViewController.view.bounds;
+        }
+        
+    }];
+    
+    
+}
 @end

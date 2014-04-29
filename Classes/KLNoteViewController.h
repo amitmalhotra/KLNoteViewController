@@ -117,6 +117,9 @@ typedef void (^transitionStateBlock)(UIViewController* viewController, KLControl
 -(void) reloadData;
 -(void) reloadDataAnimated:(BOOL) animated;
 
+//Whether or not to support behavior to stop card below a threshold
+@property (nonatomic) BOOL stickyNotes;
+
 //Helpers for getting information about the controller cards
 -(NSInteger)numberOfControllerCardsInNoteView:(KLNoteViewController*) noteView;
 -(UIViewController *)noteView:(KLNoteViewController*)noteView viewControllerAtIndex:(NSInteger) index;

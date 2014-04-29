@@ -491,14 +491,30 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
                      didEndPanningGesture:recognizer];
         }
         
-        //Check if it should return to the origin location
-        if ([self shouldReturnToState: self.state fromPoint: [recognizer translationInView:self]]) {
-            [self setState: self.state animated:YES];
+        
+        if(self.noteViewController.stickyNotes){
+            CGPoint point = [recognizer translationInView:self];
+            if (self.state == KLControllerCardStateFullScreen) {
+                if( ABS(point.y) <= 200){
+                    [self toggleStateAnimated:YES];
+                }
+            }
+            else if (self.state == KLControllerCardStateDefault){
+                if( ABS(point.y) <= 200){
+                    [self toggleStateAnimated:YES];
+                }
+            }
+        }else{
+            //Check if it should return to the origin location
+            if ([self shouldReturnToState: self.state fromPoint: [recognizer translationInView:self]]) {
+                [self setState: self.state animated:YES];
+            }
+            else {
+                //Toggle state between full screen and default if it doesnt return to the current state
+                [self toggleStateAnimated: YES];
+            }
         }
-        else {
-            //Toggle state between full screen and default if it doesnt return to the current state
-            [self toggleStateAnimated: YES];
-        }
+        
     }
 }
 
