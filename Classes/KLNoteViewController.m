@@ -388,8 +388,9 @@ willBeginPanningGesture:(UIPanGestureRecognizer*) gesture {
     
     BOOL isPortrait = UIDeviceOrientationIsPortrait([[UIApplication sharedApplication] statusBarOrientation]);
     CGRect rect = CGRectMake(viewController.view.frame.origin.x, viewController.view.frame.origin.y, viewController.view.frame.size.width, viewController.view.frame.size.height);
-    
-    if (!isPortrait) {
+   
+    // If IOS8, frames are positioned correctly on landscape rotate. Adjust only if iOS7 or below.
+    if ([[UIDevice currentDevice].systemVersion floatValue] < 8.0f && !isPortrait) { 
         rect = CGRectMake(viewController.view.frame.origin.x, viewController.view.frame.origin.y, viewController.view.frame.size.height, viewController.view.frame.size.width);
     }
     
